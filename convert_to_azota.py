@@ -15,10 +15,14 @@ def parse_questions(file_path):
         lines = f.readlines()
     
     questions = []
+    skipped = []
     i = 0
     
-    # Skip header lines
-    while i < len(lines) and not lines[i].strip().startswith('1\t'):
+    # Skip header lines - look for first line starting with digit + tab
+    while i < len(lines):
+        line = lines[i].strip()
+        if line and re.match(r'^\d+\t', line):
+            break
         i += 1
     
     # Parse each question
@@ -30,34 +34,41 @@ def parse_questions(file_path):
         
         # Try to parse as question header (STT, Mã, Nội dung)
         parts = line.split('\t')
-        if len(parts) >= 3 and parts[0].isdigit():
-            stt = parts[0]
-            code = parts[1]
-            content = parts[2]
+        if len(parts) >= 3 and parts[0].strip().isdigit():
+            stt = parts[0].strip()
+            code = parts[1].strip()
+            content = parts[2].strip()
             
             # Read the next 4 lines for options A, B, C, D
             options = []
             answer = None
+            valid = True
             
             for j in range(4):
                 i += 1
                 if i >= len(lines):
+                    valid = False
                     break
                     
                 option_line = lines[i].strip()
+                expected_prefix = chr(65 + j) + '.'  # A., B., C., D.
+                
+                # Validate option starts with expected letter
+                if not option_line.startswith(expected_prefix):
+                    print(f"Warning: Question {stt} option {j+1} doesn't start with {expected_prefix}", file=sys.stderr)
                 
                 # Check if this is option D (which contains the answer)
                 if option_line.startswith('D.'):
                     # Split by tab to extract answer
                     option_parts = option_line.split('\t')
-                    option_text = option_parts[0]
+                    option_text = option_parts[0].strip()
                     if len(option_parts) > 1 and option_parts[1].strip():
                         answer = option_parts[1].strip()
                     options.append(option_text)
                 else:
-                    options.append(option_line)
+                    options.append(option_line.strip())
             
-            if len(options) == 4 and answer:
+            if len(options) == 4 and answer and valid:
                 questions.append({
                     'stt': stt,
                     'code': code,
@@ -65,8 +76,18 @@ def parse_questions(file_path):
                     'options': options,
                     'answer': answer
                 })
+            else:
+                skipped.append({
+                    'stt': stt,
+                    'reason': f"options={len(options)}, answer={'Yes' if answer else 'No'}, valid={valid}"
+                })
         
         i += 1
+    
+    if skipped:
+        print(f"Warning: Skipped {len(skipped)} questions due to format issues", file=sys.stderr)
+        for skip in skipped[:5]:  # Show first 5 skipped questions
+            print(f"  - Question {skip['stt']}: {skip['reason']}", file=sys.stderr)
     
     return questions
 

@@ -272,6 +272,12 @@ D. Polip ruột và vi khuẩn
                         if (i >= lines.length) break;
                         
                         const optionLine = lines[i].trim();
+                        const expectedPrefix = String.fromCharCode(65 + j) + '.'; // A., B., C., D.
+                        
+                        // Validate option starts with expected letter
+                        if (!optionLine.startsWith(expectedPrefix)) {
+                            console.warn(`Warning: Option ${j+1} doesn't start with ${expectedPrefix}: ${optionLine}`);
+                        }
                         
                         // Check if this is option D (which may contain the answer)
                         if (optionLine.startsWith('D.')) {
@@ -349,14 +355,17 @@ D. Polip ruột và vi khuẩn
                 document.getElementById('stats').style.display = 'block';
                 document.getElementById('questionCount').textContent = questions.length;
                 
+                console.log(`Successfully converted ${questions.length} questions`);
+                
                 // Scroll to result
                 document.getElementById('outputText').scrollIntoView({ behavior: 'smooth', block: 'center' });
             } catch (error) {
+                console.error('Conversion error:', error);
                 alert('Lỗi khi chuyển đổi: ' + error.message);
             }
         }
         
-        function copyResult() {
+        function copyResult(event) {
             const outputText = document.getElementById('outputText');
             
             if (!outputText.value.trim()) {
@@ -364,19 +373,28 @@ D. Polip ruột và vi khuẩn
                 return;
             }
             
-            outputText.select();
-            document.execCommand('copy');
-            
-            // Show feedback
-            const btn = event.target;
-            const originalText = btn.textContent;
-            btn.textContent = '✓ Đã copy!';
-            btn.style.background = '#2196F3';
-            
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.style.background = '#4CAF50';
-            }, 2000);
+            // Use modern Clipboard API
+            navigator.clipboard.writeText(outputText.value).then(() => {
+                // Show feedback
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Đã copy!';
+                btn.style.background = '#2196F3';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#4CAF50';
+                }, 2000);
+            }).catch(err => {
+                // Fallback for older browsers
+                outputText.select();
+                try {
+                    document.execCommand('copy');
+                    alert('Đã copy kết quả!');
+                } catch (e) {
+                    alert('Lỗi khi copy: ' + err);
+                }
+            });
         }
         
         function clearAll() {
